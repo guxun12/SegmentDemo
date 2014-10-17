@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <declare-styleable name="SegmentButton">
+        <attr name="textSize" format="float" />
+        <attr name="textPressColor" format="color" />
+        <attr name="textNormalColor" format="color" />
+        <!-- Button内容以分号隔开 -->
+        <attr name="buttonContent" format="string" />
+    </declare-styleable>
+
+</resources>

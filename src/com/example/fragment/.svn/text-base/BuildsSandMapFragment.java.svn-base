@@ -1,0 +1,343 @@
+package cn.com.xfdc.xffp.builds.fragment;
+
+import java.net.URLEncoder;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.http.NameValuePair;
+import org.apache.http.message.BasicNameValuePair;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import android.content.Context;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.support.v4.app.Fragment;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.webkit.WebChromeClient;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.widget.ExpandableListView;
+import android.widget.ExpandableListView.OnChildClickListener;
+import android.widget.LinearLayout;
+import android.widget.LinearLayout.LayoutParams;
+import android.widget.Toast;
+import cn.com.xfdc.R;
+import cn.com.xfdc.xffp.base.impl.DataByServer;
+import cn.com.xfdc.xffp.builds.adapter.SandMapListViewAdapter;
+import cn.com.xfdc.xffp.builds.entity.BuildSandMapEntity;
+import cn.com.xfdc.xffp.common.constant.ActionConstantUtil;
+import cn.com.xfdc.xffp.common.constant.ConstantUtil;
+import cn.com.xfdc.xffp.common.constant.HttpConstantUtil;
+import cn.com.xfdc.xffp.common.util.CommonApplication;
+import cn.com.xfdc.xffp.common.util.HttpUtil;
+import cn.com.xfdc.xffp.common.util.SharedPreferencesUtil;
+import cn.com.xfdc.xffp.common.view.MyProgressdialog;
+import cn.com.xfdc.xffp.common.view.SandMapBuildView;
+
+public class BuildsSandMapFragment extends Fragment implements DataByServer {
+	private MyProgressdialog Progressdialog;
+	private WebView mWebView;
+	private String pname = "";
+	private String htype = "";
+	private String cityName = "";
+	private String htype_key = "";
+	private String xfId = "";
+	private CommonApplication capp;
+	private View builds_sandMap;
+	private SandMapBuildView buildListView;
+	private SandMapListViewAdapter mAdapter;
+	private LayoutInflater mInflater;
+	private Map<Integer, BuildSandMapEntity> mGroup;// 组名
+	private Map<Integer, List<BuildSandMapEntity>> mChildren;// 每一组对应的child
+	private HttpUtil httpUtil;
+	private String url;
+	private List<NameValuePair> nameValuePairs;
+	private SharedPreferencesUtil spUtil;//配置文件
+
+	public View onCreateView(LayoutInflater inflater, ViewGroup container,
+			Bundle savedInstanceState) {
+		mInflater = LayoutInflater.from(getActivity());
+		setValue();
+		builds_sandMap = inflater.inflate(R.layout.builds_sand_map, container,
+				false);
+		initBuildList();
+		initWebView();
+		return builds_sandMap;
+	}
+
+	private void initBuildList() {
+
+		new MyTask().execute();
+
+		// 给每一组添加数据
+		buildListView = (SandMapBuildView) builds_sandMap
+				.findViewById(R.id.list_build_info);
+		buildListView.setGroupIndicator(null);
+		buildListView
+				.setHeaderView(mInflater.inflate(
+						R.layout.builds_sand_map_dong_list_group,
+						buildListView, false));
+		buildListView.setOnChildClickListener(new OnChildClickListener() {
+
+			@Override
+			public boolean onChildClick(ExpandableListView parent, View v,
+					int groupPosition, int childPosition, long id) {
+				// TODO Auto-generated method stub
+				BuildSandMapEntity child = (BuildSandMapEntity) mAdapter
+						.getChild(groupPosition, childPosition);
+				Intent intent = new Intent();
+				intent.putExtra("pname", pname);
+				intent.putExtra("xfId", xfId);
+				intent.putExtra("b_num", child.getB_num());
+				intent.putExtra("dongid", child.getDong_id());
+				if (childPosition != 0) {
+					// 以下是向户列表发送bundle
+					Bundle bundle = new Bundle();
+					bundle.putString("建筑面积", child.getB_sqar()+"㎡");
+					bundle.putString("建筑面积value", child.getB_sqar()+"t"+child.getB_sqar());
+					intent.putExtras(bundle);
+				}
+				intent.putExtra("htype", htype);
+				intent.putExtra("htype_key", htype_key);
+				intent.setAction(ActionConstantUtil.BUILDS_HOUSELISTT_ACTION);
+				startActivity(intent);
+				return false;
+			}
+		});
+
+	}
+
+	private void initWebView() {
+		mWebView = (WebView) builds_sandMap.findViewById(R.id.webview_common);
+		// 得到WebSetting对象，设置支持Javascript的参数
+		mWebView.getSettings().setBuiltInZoomControls(true); // 页面添加缩放按钮
+		mWebView.getSettings().setJavaScriptEnabled(true);
+		mWebView.setInitialScale(100);// 设置缩放比例百分制
+		mWebView.setLayoutParams(new LinearLayout.LayoutParams(
+				LayoutParams.MATCH_PARENT, 400));
+		mWebView.getSettings().setUseWideViewPort(true);// 设置此属性，可任意比例缩放。
+		mWebView.addJavascriptInterface(new JavascriptInterface(getActivity()),
+				"jump2house");
+		// 载入URL
+		mWebView.loadUrl(HttpConstantUtil.sandMapUrl+"cityname="
+				+ URLEncoder.encode(URLEncoder.encode(cityName))
+				+ "&xfId="
+				+ xfId);
+		// 使用webview浏览网页
+		mWebView.setWebChromeClient(new WebChromeClient() {
+			public void onProgressChanged(WebView view, int progress) {
+			}
+		});
+		mWebView.setWebViewClient(new MyWebViewClient());
+
+	}
+
+	public class MyWebViewClient extends WebViewClient {
+		@Override
+		public boolean shouldOverrideUrlLoading(WebView view, String url) {
+			// 设置点击网页里面的链接还是在当前的webview里跳转
+			view.loadUrl(url);
+			return true;
+		}
+
+		// 设置页面加载前的事件
+		public void onPageStarted(WebView view, String url, Bitmap favicon) {
+			// TODO Auto-generated method stub
+			super.onPageStarted(view, url, favicon);
+			Progressdialog = new MyProgressdialog(getActivity(), "加载中",
+					"load......");
+			Progressdialog.dialog.show();
+		}
+
+		// 设置页面加载后的事件
+		@Override
+		public void onPageFinished(WebView view, String url) {
+			// TODO Auto-generated method stub
+			super.onPageFinished(view, url);
+			if (null != Progressdialog) {
+				Progressdialog.dialog.dismiss();
+				Progressdialog.dialog = null;
+				Progressdialog = null;
+			}
+			jump2HouseListListner();
+		}
+
+		public void onReceivedError(WebView view, int errorCode,
+				String description, String failingUrl) {
+			// 加载页面报错时的处理
+			Toast.makeText(getActivity(), "对不起出错了! " + description,
+					Toast.LENGTH_SHORT).show();
+		}
+
+		public void jump2HouseListListner() {
+			// 这段js函数的功能就是，遍历所有的a点，并添加onclick函数，函数的功能是在图片点击的时候调用本地java接口并传递url过去
+			mWebView.loadUrl("javascript:(function (){"
+					+ "var objs = document.getElementsByTagName(\"a\"); "
+					+ "for(var i=0;i<objs.length;i++)  "
+					+ "{"
+					+ "    objs[i].onclick=function()  "
+					+ "    { "
+					+ "        window.jump2house.jump2HouseList(this.id,this.name);  "
+					+ "    }  " + "}" + "})()");
+		}
+	}
+
+	public void setValue() {
+		spUtil = new SharedPreferencesUtil(getActivity(), "hb_pref");
+		cityName=spUtil.getValue("city_selected", "沈阳市");//此处以配置文件中的城市为准
+		capp = (CommonApplication) getActivity().getApplication();
+		if (getArguments().containsKey("pname")
+				|| getArguments().containsKey("xfId")) {
+			pname = getArguments().getString("pname");
+			xfId = getArguments().getString("xfId");
+			htype = getArguments().getString("htype_value");
+			htype_key = getArguments().getString("htype_key");
+			// avgprice = getArguments().getString("avgprice");
+			// avgprice_sec = getArguments().getString("avgprice_sec");
+			// btype = getArguments().getString("btype");
+			// btype_sec = getArguments().getString("btype_sec");
+			// bsqar = getArguments().getString("bsqar");
+			// bsqar_sec = getArguments().getString("bsqar_sec");
+			// totalprice = getArguments().getString("totalprice");
+			// totalprice_sec = getArguments().getString("totalprice_sec");
+		}
+	}
+
+	public class JavascriptInterface {
+		private Context context;
+
+		public JavascriptInterface(Context context) {
+			this.context = context;
+		}
+
+		public void jump2HouseList(String dongid, String b_num) {
+			// buildListView.onGroupClickByWeb(buildListView, 1);
+			// buildListView.expandGroup(1);
+			Intent intent = new Intent();
+			intent.putExtra("pname", pname);
+			intent.putExtra("xfId", xfId);
+			intent.putExtra("b_num", b_num);
+			intent.putExtra("dongid", dongid);
+			intent.putExtra("htype", htype);
+			intent.putExtra("htype_key", htype_key);
+			intent.setAction(ActionConstantUtil.BUILDS_HOUSELISTT_ACTION);
+			startActivity(intent);
+			// Toast.makeText(getActivity(), "点击与下面的列表做联动", 1000).show();
+
+		}
+
+	}
+
+	public void getDataByServerAsy() {
+		connectServer();
+		nameValuePairs.add(new BasicNameValuePair("xfId", xfId));
+		JSONObject buildjson = httpUtil.post(url, nameValuePairs);
+		if (null != buildjson) {
+			JSONArray buildinfolist;
+			JSONArray house_type_list;
+			mGroup = new HashMap<Integer, BuildSandMapEntity>();
+			mChildren = new HashMap<Integer, List<BuildSandMapEntity>>();// 给每一组实例化child
+			try {
+				buildinfolist = buildjson.getJSONArray("stand_pointList");
+				xfId = buildjson.getString("xf_id");
+				for (int i = 0; i < buildinfolist.length(); i++) {
+					BuildSandMapEntity buildGroup = new BuildSandMapEntity();// 每一组的Group
+					mGroup.put(i, buildGroup);
+					// house_type_list = buildinfolist.getJSONObject(i)
+					// .getJSONArray("house_typeList");// 户型组
+					// for (int j = 0; j < house_type_list.length(); j++) {
+					List<BuildSandMapEntity> buildChild = new ArrayList<BuildSandMapEntity>();// 每一组的child
+					mChildren.put(i, buildChild);
+					// }
+				}
+				// 给每一组添加数据
+				for (int i = 0; i < mGroup.size(); i++) {
+					house_type_list = buildinfolist.getJSONObject(i)
+							.getJSONArray("house_typeList");
+					String build_dong_id = ((JSONObject) buildinfolist.get(i))
+							.getString("dong_id");
+					String build_b_num = ((JSONObject) buildinfolist.get(i))
+							.getString("b_num");
+					mGroup.get(i).setH_num(
+							((JSONObject) buildinfolist.get(i))
+									.getString("h_quan"));// 可售套数
+					mGroup.get(i).setB_num(build_b_num);// 栋地址
+					for (int j = 0; j < house_type_list.length() + 1; j++) {
+						BuildSandMapEntity child = new BuildSandMapEntity();
+						if (j == 0) {
+							child.setHouse_type("房屋类型");
+							child.setH_num("可售套数");
+							child.setB_sqar("面积");
+							child.setPrice("价格");
+						} else {
+							child.setHouse_type(house_type_list.getJSONObject(
+									j - 1).getString("house_type"));
+							child.setH_num(house_type_list.getJSONObject(j - 1)
+									.getString("type_num"));
+							child.setB_sqar(house_type_list
+									.getJSONObject(j - 1)
+									.getString("type_sqar"));
+							child.setPrice(house_type_list.getJSONObject(j - 1)
+									.getString("preprice"));
+						}
+						child.setDong_id(build_dong_id);
+						child.setB_num(build_b_num);
+						mChildren.get(i).add(child);
+					}
+				}
+				buildinfolist = null;
+				house_type_list = null;
+			} catch (JSONException e) {
+				e.printStackTrace();
+			}
+		}
+		buildjson = null;
+		if (null != httpUtil) {
+			httpUtil.clearnameValuePairs(nameValuePairs);
+		}
+	}
+
+	@Override
+	public void connectServer() {
+		this.url = HttpConstantUtil.serverurl + "sandMapBuildInfoAPP";
+		if ("".equals(this.httpUtil) || null == this.httpUtil) {
+			this.httpUtil = new HttpUtil(capp, getActivity());
+		}
+		this.nameValuePairs = new ArrayList<NameValuePair>();
+	}
+
+	class MyTask extends AsyncTask<String, Void, String> {
+		protected void onPreExecute() {
+			super.onPreExecute();
+		}
+
+		protected void onPostExecute(String result) {
+			super.onPostExecute(result);
+			mAdapter = new SandMapListViewAdapter(mGroup, mChildren,
+					getActivity(), buildListView);
+			// mAdapter.setData(mGroup, mChildren);
+			buildListView.setAdapter(mAdapter);
+		}
+
+		protected String doInBackground(String... arg0) {
+			getDataByServerAsy();// 访问网络加载数据
+			return null;
+		}
+
+	}
+
+	@Override
+	public void getDataByServer() {
+		// TODO Auto-generated method stub
+
+	}
+
+}

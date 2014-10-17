@@ -1,0 +1,693 @@
+package cn.com.xfdc.xffp.builds.fragment;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.http.NameValuePair;
+import org.apache.http.message.BasicNameValuePair;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import android.annotation.SuppressLint;
+import android.content.Intent;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.support.v4.app.Fragment;
+import android.util.DisplayMetrics;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.view.ViewGroup;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
+import android.widget.ScrollView;
+import android.widget.TextView;
+import cn.com.xfdc.R;
+import cn.com.xfdc.xffp.base.impl.DataByServer;
+import cn.com.xfdc.xffp.builds.entity.BuildsPriceChartEntity;
+import cn.com.xfdc.xffp.builds.entity.BuildsPriceChartListEntity;
+import cn.com.xfdc.xffp.builds.layout.BuildsPicLayout;
+import cn.com.xfdc.xffp.builds.layout.Builds_price_chart;
+import cn.com.xfdc.xffp.common.cache.ImageLoader;
+import cn.com.xfdc.xffp.common.constant.ActionConstantUtil;
+import cn.com.xfdc.xffp.common.constant.ConstantUtil;
+import cn.com.xfdc.xffp.common.constant.HttpConstantUtil;
+import cn.com.xfdc.xffp.common.entity.PhoneParEntity;
+import cn.com.xfdc.xffp.common.util.CommonApplication;
+import cn.com.xfdc.xffp.common.util.HttpUtil;
+import cn.com.xfdc.xffp.common.util.Tools;
+import cn.com.xfdc.xffp.common.view.FPProgressDialog;
+import cn.com.xfdc.xffp.common.view.MyProgressdialog;
+import cn.com.xfdc.xffp.common.view.jazzyviewpager.JazzyViewPager;
+import cn.com.xfdc.xffp.maphouse.activity.MaphouseActivity;
+
+@SuppressLint({ "NewApi", "SetJavaScriptEnabled" })
+public class BuildsMainFragment extends Fragment implements DataByServer {
+	// private MapView mMapView = null;
+	// private WebView mapView;
+	private ImageView mapView;
+	private TextView txt_builds_rztime;// 入住时间
+	private TextView txt_builds_htype;// 物业类型
+	private TextView txt_builds_explcom;// 开发商
+	private TextView txt_builds_btype;// 建筑形式
+	private TextView txt_builds_kptime;// 开盘时间
+	private TextView txt_builds_addr;// 项目地址
+	private TextView txt_builds_green;// 绿化率
+	private TextView txt_builds_vrate;// 容积率
+	private TextView txt_builds_zhuangxiu;// 装修情况
+	private TextView txt_builds_lsqar;// 占地面积
+	private TextView txt_builds_block;// 板块
+	private TextView txt_builds_bsqar;// 建筑面积
+	private ScrollView builds_scroll1;// 楼盘主页滑动条
+	private String avgPrice;
+	private TextView text_builds_info_ditu;
+	private TextView txt_builds_youhui;
+	private TextView txt_builds_picType;
+	private JazzyViewPager jazzyViewPager;
+	private List<String> mImageUrls = new ArrayList<String>();
+	private List<String> mImageTypes = new ArrayList<String>();
+	List<BuildsPriceChartListEntity> chartlist = new ArrayList<BuildsPriceChartListEntity>();
+	private String mImageUrl = null;
+	private HttpUtil httpUtil;
+	private String url;
+	private List<NameValuePair> nameValuePairs;
+	private String pname = "";
+	private String xfId = "";
+	private String mapPoint = "";
+	private String saleNum = "";
+	private String htypevalue = "";
+	private String buildsAddr = "";
+	private String tel = "";
+	private String pic_url = "";
+	private CommonApplication capp;
+	private JSONObject buildsInfoEntityDb;
+	private View builds_main;
+	private LinearLayout pricechart;
+	// private TelFragmentCallBack TelFragmentCallBack;
+	private BuildsPicLayout BuildsPicImgLayout;
+	// private OverlayItem item;
+	private PhoneParEntity phoneParEntity;
+	private ImageLoader imageLoader;
+	private FPProgressDialog mydialog;
+	private LinearLayout llyout;
+<<<<<<< .mine
+	private RelativeLayout price_xml;
+
+=======
+	private MyProgressdialog Progressdialog;
+>>>>>>> .r9424
+	@Override
+	public View onCreateView(LayoutInflater inflater, ViewGroup container,
+			Bundle savedInstanceState) {
+		pname = getArguments().getString("pname");
+		xfId = getArguments().getString("xfId");
+		htypevalue = getArguments().getString("htype_value");
+		builds_main = inflater.inflate(R.layout.builds_listl, container, false);
+		imageLoader = new ImageLoader(getActivity());
+		init();
+		new redrawAreaTask().execute();
+		return builds_main;
+	}
+
+	public void init() {
+		/**
+		 * gx-2014-05-29
+		 * 百度sdk采用ScrollView的时候由于mapview继承GLsurfaceview，与ScrollView滑动冲突产生黑屏现象；
+		 * 另外目前baiduMap不能很好的兼容fragment
+		 * ，初次加载会有黑屏现象（主activity需要加载glsurfaceview渲染器导致） 综上，楼盘主页的地图位置信息改为静态图显示
+		 */
+
+		/*
+		 * if (view_map == null) view_map = LayoutInflater.from(
+		 * getActivity().getApplicationContext()).inflate( R.layout.view_map,
+		 * null);
+		 * 
+		 * capp = (CommonApplication) getActivity().getApplication(); mBMapMan =
+		 * (BMapManager) capp.getCacheMap().get("mBMapMan"); if (null ==
+		 * mBMapMan) { mBMapMan = new
+		 * BMapManager(getActivity().getApplication());
+		 * mBMapMan.init(HttpConstantUtil.mapkey, null); }
+		 */
+		capp = (CommonApplication) getActivity().getApplication();
+		jazzyViewPager = (JazzyViewPager) builds_main
+				.findViewById(R.id.builds_images_container);
+		llyout = (LinearLayout) builds_main
+				.findViewById(R.id.llyout_imagesbottom_builds);
+		findViewById();
+		// getDataByServer();
+		setlistner();
+		// initmap();
+		// mapView.loadUrl("http://202.199.73.188:8088/xftf/Calculate.jsp");
+	}
+
+	// private void initmap() {
+	// phoneParEntity = new Tools().getphsize(getActivity());
+	// DisplayMetrics dm = new DisplayMetrics();
+	// dm = getResources().getDisplayMetrics();
+	// float density = dm.density; // 获取像素密度
+	// int screenHeight = 180;
+	// int screenWidth = (int) (phoneParEntity.getPh_width() / density);
+	// Tools.MapUitls.getMapImageView(screenWidth, screenHeight,
+	// (Double.parseDouble(mapPoint.split(",")[0])),
+	// (Double.parseDouble(mapPoint.split(",")[1])), this.mapView);
+	// phoneParEntity = null;
+	// dm = null;
+	// mapView.addJavascriptInterface(new JavascriptInterface(this),
+	// "imagelistner");
+	// mapView.setWebViewClient(new MyWebViewClient());
+	//
+	// }
+
+	private void initmap() {
+		phoneParEntity = new Tools().getphsize(getActivity());
+		DisplayMetrics dm = new DisplayMetrics();
+		dm = getResources().getDisplayMetrics();
+		float density = dm.density; // 获取像素密度
+		int screenHeight = 180;
+		int screenWidth = (int) (phoneParEntity.getPh_width() / density);
+		if (!"".equals(mapPoint) && null != mapPoint) {
+			getMapPic(screenWidth, screenHeight,
+					(Double.parseDouble(mapPoint.split(",")[0])),
+					(Double.parseDouble(mapPoint.split(",")[1])), this.mapView);
+			phoneParEntity = null;
+			dm = null;
+		}
+	}
+
+	public void getMapPic(int paramInt1, int paramInt2, double paramDouble1,
+			double paramDouble2, ImageView paramWebView) {
+		StringBuffer localStringBuffer = new StringBuffer(
+				"http://api.map.baidu.com/staticimage?center=");
+		localStringBuffer.append(paramDouble1).append(",").append(paramDouble2)
+				.append("&width=").append(paramInt1).append("&height=")
+				.append(paramInt2).append("&zoom=15").append("&markers=")
+				.append(paramDouble1).append(",").append(paramDouble2)
+				.append("&markerStyles=m");
+		imageLoader.DisplayImageSimple(localStringBuffer.toString(), mapView,
+				getActivity(), ConstantUtil.SHOW_PIC_NORMAL);
+
+	}
+
+	@Override
+	public void getDataByServer() {
+		connectServer();
+		nameValuePairs.add(new BasicNameValuePair("pname", pname));
+		nameValuePairs.add(new BasicNameValuePair("xfId", xfId));
+		nameValuePairs.add(new BasicNameValuePair("htype", htypevalue));
+		JSONObject j1 = httpUtil.post(url, nameValuePairs);
+		JSONArray priceChartListDb, xAreaData;
+		if (null != j1) {
+			try {
+				buildsInfoEntityDb = j1.getJSONObject("buildsInfoEntity");
+				priceChartListDb = j1.getJSONArray("priceChartList");
+				avgPrice = buildsInfoEntityDb.getString("avg_price");
+				saleNum = buildsInfoEntityDb.getString("sellcount");
+				buildsAddr = buildsInfoEntityDb.getString("addr");
+
+				// if (null != tel && "" != tel) {
+				// tel = tel.split("/")[0].toString();// 得到电话号码
+				// TelFragmentCallBack.setTel(tel);
+				// }
+				// tel_button_click.setText(buildsInfoEntityDb.getString("tel"));
+				mapPoint = buildsInfoEntityDb.getString("mapPoint");
+				for (int i = 0; i < priceChartListDb.length(); i++) {
+					BuildsPriceChartListEntity b = new BuildsPriceChartListEntity();
+					b.setB_type(((JSONObject) priceChartListDb.get(i))
+							.getString("b_type"));
+					b.setH_type(((JSONObject) priceChartListDb.get(i))
+							.getString("h_type"));
+					b.setP_name(((JSONObject) priceChartListDb.get(i))
+							.getString("p_name"));
+
+					xAreaData = ((JSONObject) priceChartListDb.get(i))
+							.getJSONArray("list");
+
+					for (int k = 0; k < xAreaData.length(); k++) {
+						BuildsPriceChartEntity bpcEntity = new BuildsPriceChartEntity();
+						bpcEntity.setP_name(((JSONObject) xAreaData.get(k))
+								.getString("p_name"));
+						bpcEntity.setB_type(((JSONObject) xAreaData.get(k))
+								.getString("b_type"));
+						bpcEntity.setH_type(((JSONObject) xAreaData.get(k))
+								.getString("h_type"));
+						bpcEntity.setAvg_price(((JSONObject) xAreaData.get(k))
+								.getString("avg_price"));
+						bpcEntity.setDate(((JSONObject) xAreaData.get(k))
+								.getString("date"));
+						b.getList().add(bpcEntity);
+						bpcEntity = null;
+					}
+					if (!"".equals(chartlist) && null != chartlist)
+						chartlist.add(b);
+					b = null;
+				}
+
+				mImageUrl = buildsInfoEntityDb.getString("outdoorUrl");
+				addImageUrl(mImageUrl, "outdoorUrl");
+				mImageUrl = buildsInfoEntityDb.getString("drawpicUrl");
+				addImageUrl(mImageUrl, "drawpicUrl");
+				mImageUrl = buildsInfoEntityDb.getString("sitepicUrl");
+				addImageUrl(mImageUrl, "sitepicUrl");
+				pic_url = buildsInfoEntityDb.getString("buildguihuaUrl");
+				mImageUrl = buildsInfoEntityDb.getString("buildguihuaUrl");
+				addImageUrl(mImageUrl, "buildguihuaUrl");
+				if (null != mImageUrls && mImageUrls.size() == 0) {
+					mImageUrl = "drawable://" + R.drawable.nopic;
+					addImageUrl(mImageUrl, "nopic");
+				}
+
+			} catch (JSONException e) {
+				e.printStackTrace();
+			}
+			j1 = null;
+			if (null != httpUtil) {
+				httpUtil.clearnameValuePairs(nameValuePairs);
+			}
+		}
+	}
+
+	public void addImageUrl(String url, String type) {
+		if (!"".equals(url) && null != mImageUrls && null != mImageTypes) {
+			mImageUrls.add(url);
+			mImageTypes.add(type);
+		}
+
+	}
+
+	@Override
+	public void connectServer() {
+		this.url = HttpConstantUtil.serverurl + "buildszhuye";
+		if ("".equals(this.httpUtil) || null == this.httpUtil) {
+			this.httpUtil = new HttpUtil(capp, getActivity());
+		}
+		this.nameValuePairs = new ArrayList<NameValuePair>();
+	}
+
+	private void setlistner() {
+		// tel_button_click.setOnClickListener(telButtonListener);
+		text_builds_info_ditu.setOnClickListener(mapPicListener);
+		mapView.setOnClickListener(mapPicListener);
+		price_xml.setOnTouchListener(onTouchListener);
+		price_xml.setOnClickListener(pricechartListener);
+
+	}
+
+	// 地图点击事件
+	OnClickListener mapPicListener = new OnClickListener() {
+		@Override
+		public void onClick(View v) {
+			Intent intent = new Intent();
+			intent.putExtra("mapPoint", mapPoint);
+			intent.putExtra("xfId", xfId);
+			intent.putExtra("pname", pname);
+			intent.putExtra("avgPrice", avgPrice);
+			intent.putExtra("saleNum", saleNum);
+			intent.putExtra("buildsAddr", buildsAddr);
+			intent.putExtra("pic_url", pic_url);
+			intent.setAction(ActionConstantUtil.BUILDS_SURROUND_ACTION);
+			startActivity(intent);
+		}
+	};
+	OnClickListener pricechartListener = new OnClickListener() {
+		@Override
+		public void onClick(View v) {
+			Log.i("pricechartListener","aasaaaaaaaaaa");
+		}
+	};
+
+	// webView监听
+	// private class MyWebViewClient extends WebViewClient {
+	// @Override
+	// public boolean shouldOverrideUrlLoading(WebView view, String url) {
+	// return super.shouldOverrideUrlLoading(view, url);
+	// }
+	//
+	// @Override
+	// public void onPageFinished(WebView view, String url) {
+	// super.onPageFinished(view, url);
+	// mapClickListner();
+	// }
+	//
+	// @Override
+	// public void onPageStarted(WebView view, String url, Bitmap favicon) {
+	// view.getSettings().setJavaScriptEnabled(true);
+	// super.onPageStarted(view, url, favicon);
+	// }
+	//
+	// public void onReceivedError(WebView view, int errorCode,
+	// String description, String failingUrl) {
+	// super.onReceivedError(view, errorCode, description, failingUrl);
+	//
+	// }
+	// }
+
+	// js通信接口
+	// public class JavascriptInterface {
+	// private BuildsMainFragment buildsMainFragment;
+	//
+	// public JavascriptInterface(BuildsMainFragment buildsMainFragment) {
+	// this.buildsMainFragment = buildsMainFragment;
+	// }
+	//
+	// public void openImage(String img) {
+	// Intent intent = new Intent();
+	// intent.putExtra("mapPoint", mapPoint);
+	// intent.putExtra("xfId", xfId);
+	// intent.putExtra("pname", pname);
+	// intent.putExtra("avgPrice", avgPrice);
+	// intent.putExtra("saleNum", saleNum);
+	// intent.putExtra("buildsAddr", buildsAddr);
+	// intent.putExtra("pic_url", pic_url);
+	// intent.setAction(ActionConstantUtil.BUILDS_SURROUND_ACTION);
+	// startActivity(intent);
+	// }
+	// }
+
+	// public void mapClickListner() {
+	// // 这段js函数的功能就是，遍历所有的img几点，并添加onclick函数，函数的功能是在图片点击的时候调用本地java接口并传递url过去
+	// mapView.loadUrl("javascript:(function(){"
+	// + "var objs = document.getElementsByTagName(\"img\"); "
+	// + "for(var i=0;i<objs.length;i++)  " + "{"
+	// + "    objs[i].onclick=function()  " + "    {  "
+	// + "        window.imagelistner.openImage(this.src);  "
+	// + "    }  " + "}" + "})()");
+	// }
+
+	/*
+	 * public void onAttach(Activity activity) { super.onAttach(activity); if
+	 * (!(activity instanceof TelFragmentCallBack)) { throw new
+	 * IllegalStateException(
+	 * "buildsMainFragment所在的Activity必须实现TelFragmentCallBack接口"); }
+	 * TelFragmentCallBack = (TelFragmentCallBack) activity; }
+	 */
+
+	private void findViewById() {
+		// TODO Auto-generated method stub
+		// tel_button_click = (TextView)
+		// builds_main.findViewById(R.id.text_buildslist_phone);// 底部打电话的按钮
+		// mIndicator =
+		// (LinearLayout)builds_main.findViewById(R.id.builds_images_indicator);//图片滑动位置指示（线条）
+		txt_builds_rztime = (TextView) builds_main
+				.findViewById(R.id.txt_builds_rztime);// 入住时间
+		txt_builds_addr = (TextView) builds_main
+				.findViewById(R.id.txt_builds_addr);// 地址
+		txt_builds_kptime = (TextView) builds_main
+				.findViewById(R.id.txt_builds_kptime);// 开盘时间
+		txt_builds_btype = (TextView) builds_main
+				.findViewById(R.id.txt_builds_btype);// 建筑形式
+		txt_builds_explcom = (TextView) builds_main
+				.findViewById(R.id.txt_builds_explcom);// 开发商
+		txt_builds_htype = (TextView) builds_main
+				.findViewById(R.id.txt_builds_htype);// 房屋类型
+		txt_builds_green = (TextView) builds_main
+				.findViewById(R.id.txt_builds_green);// 绿化率
+		txt_builds_youhui = (TextView) builds_main
+				.findViewById(R.id.txt_builds_youhui);// 优惠信息
+		txt_builds_vrate = (TextView) builds_main
+				.findViewById(R.id.txt_builds_vrate);// 容积率
+		txt_builds_picType = (TextView) builds_main
+				.findViewById(R.id.text_builds_picTypes);// 图片的类型
+		txt_builds_zhuangxiu = (TextView) builds_main
+				.findViewById(R.id.txt_builds_zhuangxiu);// 装修
+		txt_builds_lsqar = (TextView) builds_main
+				.findViewById(R.id.txt_builds_lsqar);// 占地
+		txt_builds_block = (TextView) builds_main
+				.findViewById(R.id.txt_builds_block);// 所占板块
+		txt_builds_bsqar = (TextView) builds_main
+				.findViewById(R.id.txt_builds_bsqar);// 建筑面积
+		builds_scroll1 = (ScrollView) builds_main
+				.findViewById(R.id.builds_scroll1);// 楼盘主页滑动条
+		text_builds_info_ditu = (TextView) builds_main
+				.findViewById(R.id.text_builds_info_ditu);// 楼盘主页滑动条
+		// this.mapView = (WebView)
+		// builds_main.findViewById(R.id.webview_common);// 用于显示地图的webview
+		this.mapView = (ImageView) builds_main
+				.findViewById(R.id.imv_builds_mapinfo);// 用于显示地图的imageview
+		pricechart = (LinearLayout) builds_main
+				.findViewById(R.id.builds_price_chart);
+		price_xml = (RelativeLayout) builds_main
+				.findViewById(R.id.builds_price_basxml);
+	}
+
+	OnClickListener telButtonListener = new OnClickListener() {
+		@Override
+		public void onClick(View v) {
+			Intent intent = new Intent();
+			intent.setAction(ActionConstantUtil.BUILDS_HOUSE_SEARCH_DETAIL_ACTION);
+			startActivity(intent);
+		}
+	};
+
+	// 当该Fragment从它所属的Activity中被删除时调用该方法
+	// @Override
+	// public void onDetach() {
+	// super.onDetach();
+	// TelFragmentCallBack = null;
+	// }
+
+	@Override
+	public void onDestroyView() {
+		// if (null != this.mapView)
+		// this.mapView.destroy();
+		imageLoader.clearCache();
+		jazzyViewPager = null;
+		avgPrice = null;
+		avgPrice = null;
+		mImageTypes = null;
+		mImageUrls = null;
+		chartlist = null;
+		mImageUrl = null;
+		httpUtil = null;
+		url = null;
+		nameValuePairs = null;
+		pname = null;
+		xfId = null;
+		mapPoint = null;
+		saleNum = null;
+		buildsAddr = null;
+		tel = null;
+		capp = null;
+		buildsInfoEntityDb = null;
+		pic_url = null;
+		if (null != BuildsPicImgLayout) {
+			BuildsPicImgLayout.mImageLoader.clearCache();
+			BuildsPicImgLayout.shutdown();
+			BuildsPicImgLayout.updateThread = null;
+			BuildsPicImgLayout.mImageViews = null;
+			BuildsPicImgLayout.mImageUrls = null;
+			BuildsPicImgLayout.mImageTypes = null;
+			BuildsPicImgLayout.imageView = null;
+			BuildsPicImgLayout.imageViews = null;
+			BuildsPicImgLayout.mImageLoader = null;
+			BuildsPicImgLayout.mHandler = null;
+			BuildsPicImgLayout.mViewPager.removeAllViews();
+			BuildsPicImgLayout.mViewPager = null;
+			BuildsPicImgLayout = null;
+		}
+		super.onDestroyView();
+	}
+
+	// public interface TelFragmentCallBack {
+	// public void setTel(String tel);
+	// }
+	@Override
+	public void onPause() {
+		if (null != BuildsPicImgLayout)
+			BuildsPicImgLayout.shutdown();
+		super.onPause();
+	}
+
+	@Override
+	public void onResume() {
+		if (null != BuildsPicImgLayout)
+			BuildsPicImgLayout.start();
+		super.onResume();
+	}
+
+	class redrawAreaTask extends AsyncTask<Void, Void, Void> {
+		@Override
+		protected void onPreExecute() {
+			super.onPreExecute();
+//			startProgressDialog();
+			Progressdialog = new MyProgressdialog(getActivity(), "加载中",
+					"load......");
+			Progressdialog.dialog.show();
+		}
+
+		@Override
+		protected void onPostExecute(Void result) {
+			super.onPostExecute(result);
+			if (null != buildsInfoEntityDb) {
+				try {
+					txt_builds_htype.setText("物业类型："
+							+ buildsInfoEntityDb.getString("type"));
+					txt_builds_rztime.setText("入住时间："
+							+ buildsInfoEntityDb.getString("d_date"));
+					txt_builds_addr.setText("项目地址："
+							+ buildsInfoEntityDb.getString("addr"));
+					txt_builds_kptime.setText("开盘时间："
+							+ buildsInfoEntityDb.getString("m_Date"));
+					txt_builds_explcom.setText("开 发   商："
+							+ buildsInfoEntityDb.getString("expl_Com"));
+					txt_builds_btype.setText("建筑形式："
+							+ buildsInfoEntityDb.getString("b_type_list"));
+					txt_builds_green.setText("绿 化   率："
+							+ buildsInfoEntityDb.getString("g_Rate"));
+					txt_builds_vrate.setText("容 积   率："
+							+ buildsInfoEntityDb.getString("v_Rate"));
+					txt_builds_lsqar.setText("占地面积："
+							+ buildsInfoEntityDb.getString("l_Sqar") + "万㎡");
+					txt_builds_bsqar.setText("建筑面积："
+							+ buildsInfoEntityDb.getString("b_Sqar") + "万㎡");
+					txt_builds_block.setText("所属板块："
+							+ buildsInfoEntityDb.getString("block"));
+					txt_builds_zhuangxiu.setText("装修情况：暂无");
+					txt_builds_youhui.setText("         "
+							+ buildsInfoEntityDb.getString("voucherContext"));// 优惠信息
+					tel = buildsInfoEntityDb.getString("tel");
+				} catch (JSONException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			BuildsPicImgLayout = new BuildsPicLayout(getActivity(), mImageUrls,
+					mImageTypes, txt_builds_picType, jazzyViewPager, llyout);
+			
+			new Builds_price_chart(getActivity(), chartlist, pricechart, pname);
+			initmap();
+//			stopProgressDialog();
+			if(null!=Progressdialog){
+				Progressdialog.dialog.dismiss();
+				Progressdialog.dialog = null;
+				Progressdialog=null;
+			}
+		}
+
+
+		@Override
+		protected Void doInBackground(Void... params) {
+			getDataByServer();// 访问网络加载数据
+			return null;
+		}
+
+	}
+	private View.OnTouchListener onTouchListener = new View.OnTouchListener() {  
+		   
+		@Override
+		public boolean onTouch(View arg0, MotionEvent event) {
+			 switch (event.getAction()) {
+		     case MotionEvent.ACTION_MOVE:   
+		    	 Log.i("move", "ACTION_MOVE");
+		    	 builds_scroll1.requestDisallowInterceptTouchEvent(true); 
+		         break;  
+		     case MotionEvent.ACTION_CANCEL:  
+		    	 Log.i("move", "11111");
+		    	 builds_scroll1.requestDisallowInterceptTouchEvent(true);  
+		         break;  
+			}
+			 return false;
+		}  
+    }; 
+
+	private void startProgressDialog() {
+		if (mydialog == null) {
+			mydialog = FPProgressDialog.createDialog(getActivity());
+			mydialog.setMessage("正在加载中...");
+		}
+
+		mydialog.show();
+	}
+
+	private void stopProgressDialog() {
+		if (mydialog != null) {
+			mydialog.dismiss();
+			mydialog = null;
+		}
+	}
+	/*
+	 * 要处理overlay点击事件时需要继承ItemizedOverlay 不处理点击事件时可直接生成ItemizedOverlay.
+	 */
+	/*
+	 * class OverlayTest extends ItemizedOverlay<OverlayItem> {
+	 * 
+	 * // 用MapView构造ItemizedOverlay public OverlayTest(Drawable mark, MapView
+	 * mapView) { super(mark, mapView); }
+	 * 
+	 * protected boolean onTap(int index) { // 在此处理item点击事件
+	 * 
+	 * textpname = (TextView) view_map.findViewById(R.id.vmp_tex_build);
+	 * textpname.setText(pname); textprice = (TextView)
+	 * view_map.findViewById(R.id.vmp_tex_price); textimageview = (ImageView)
+	 * view_map.findViewById(R.id.vmp_img_build); try { if
+	 * (buildsInfoEntityDb.getString("avg_price").equals("") &&
+	 * buildsInfoEntityDb.getString("avg_price").equals("")) { pressprice =
+	 * "未定价"; } else if (buildsInfoEntityDb.getString("avg_price").equals("") &&
+	 * !buildsInfoEntityDb.getString("avg_price") .equals("")) { pressprice =
+	 * buildsInfoEntityDb.getString("avg_price") + "~" + "未定价"; } else if
+	 * (!buildsInfoEntityDb.getString("avg_price") .equals("") &&
+	 * buildsInfoEntityDb.getString("avg_price").equals("")) { pressprice =
+	 * "未定价" + "~" + buildsInfoEntityDb.getString("avg_price"); } else {
+	 * pressprice = buildsInfoEntityDb.getString("avg_price") + "~" +
+	 * buildsInfoEntityDb.getString("avg_price") + "元/㎡"; }
+	 * 
+	 * textprice.setText("价格:" + pressprice); textsalesets = (TextView)
+	 * view_map.findViewById(R.id.vmp_tex_mount); textsalesets.setText("可售套数:" +
+	 * buildsInfoEntityDb.getString("sellcount") + "套");
+	 * 
+	 * textaddress = (TextView) view_map.findViewById(R.id.vmp_tex_adress);
+	 * textaddress.setText("地址:" + buildsInfoEntityDb.getString("addr"));
+	 * 
+	 * //
+	 * textimageview.setImageBitmap(returnBitMap(maphosueentitylist.get(index)
+	 * .getImgurl())); pop.showPopup(view_map, item.getPoint(), 36); } catch
+	 * (JSONException e) { // TODO Auto-generated catch block
+	 * e.printStackTrace(); }
+	 * 
+	 * return true; }
+	 * 
+	 * public boolean onTap(GeoPoint pt, MapView mapView) { //
+	 * 在此处理MapView的点击事件，当返回 true时 super.onTap(pt, mapView); pop.hidePop();
+	 * return false; } }
+	 */
+
+	/*
+	 * private void initmap() { mMapView = (MapView)
+	 * builds_main.findViewById(R.id.map_builds_mapsView);
+	 * mMapView.setBuiltInZoomControls(false); MapController mMapController =
+	 * mMapView.getController(); // 得到mMapView的控制权,可以用它控制和驱动平移和缩放
+	 * 
+	 * mMapController.setZoomGesturesEnabled(false);
+	 * mMapController.setScrollGesturesEnabled(false);
+	 * mMapController.setZoom(15);// 设置地图zoom级别 GeoPoint point = new
+	 * GeoPoint((int) (39.915 * 1E6), (int) (116.404 * 1E6)); //
+	 * 用给定的经纬度构造一个GeoPoint，单位是微度 (度 * 1E6) mMapController.setCenter(point);//
+	 * 设置地图中心点 point = null; Drawable mark =
+	 * getResources().getDrawable(R.drawable.icon_gcoding); //
+	 * 用OverlayItem准备Overlay数据 GeoPoint p = null; if (mapPoint.split(",").length
+	 * > 1) { p = new GeoPoint( (int)
+	 * (Double.parseDouble(mapPoint.split(",")[1]) * 1E6), (int)
+	 * (Double.parseDouble(mapPoint.split(",")[0]) * 1E6)); item = new
+	 * OverlayItem(p, "item", "item"); OverlayTest itemOverlay = new
+	 * OverlayTest(mark, mMapView); mMapView.getOverlays().clear();
+	 * mMapView.getOverlays().add(itemOverlay); itemOverlay.addItem(item);
+	 * mMapController.setCenter(p);// 设置地图中心点 p = null; }
+	 * mMapView.setOnTouchListener(new View.OnTouchListener() { // 设置与屏幕上下滑动不冲突
+	 * 
+	 * @Override public boolean onTouch(View v, MotionEvent event) { if
+	 * (event.getAction() == MotionEvent.ACTION_UP) {
+	 * builds_scroll1.requestDisallowInterceptTouchEvent(false); } else {
+	 * builds_scroll1.requestDisallowInterceptTouchEvent(true); } return false;
+	 * }
+	 * 
+	 * });
+	 * 
+	 * mMapView.refresh(); // pop demo // 创建pop对象，注册点击事件监听接口 // pop = new
+	 * PopupOverlay(mMapView, new PopupClickListener() { // @Override // public
+	 * void onClickedPopup(int index) { // } // }); }
+	 */
+
+}

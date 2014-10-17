@@ -1,0 +1,825 @@
+package cn.com.xfdc.xffp.builds.fragment;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.http.NameValuePair;
+import org.apache.http.message.BasicNameValuePair;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import android.annotation.SuppressLint;
+import android.app.AlertDialog;
+import android.content.Intent;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.support.v4.app.Fragment;
+import android.text.Html;
+import android.view.Gravity;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.View.OnClickListener;
+import android.view.ViewGroup;
+import android.view.Window;
+import android.view.WindowManager;
+import android.widget.AbsListView;
+import android.widget.AbsListView.OnScrollListener;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
+import android.widget.BaseAdapter;
+import android.widget.Button;
+import android.widget.ListView;
+import android.widget.TextView;
+import android.widget.Toast;
+import cn.com.xfdc.R;
+import cn.com.xfdc.xffp.base.impl.DataByServer;
+import cn.com.xfdc.xffp.builds.entity.BuildsZhuYeEntity;
+import cn.com.xfdc.xffp.common.constant.ActionConstantUtil;
+import cn.com.xfdc.xffp.common.constant.ConstantUtil;
+import cn.com.xfdc.xffp.common.constant.HttpConstantUtil;
+import cn.com.xfdc.xffp.common.util.CommonApplication;
+import cn.com.xfdc.xffp.common.util.HttpUtil;
+import cn.com.xfdc.xffp.common.view.CustomDialog;
+import cn.com.xfdc.xffp.common.view.MyProgressdialog;
+import cn.com.xfdc.xffp.newhouse.layout.NHSearchWheelviewLayout;
+import cn.com.xfdc.xffp.wheel.widget.WheelView;
+
+/*
+ * 楼盘主页--房源搜索模块--搜索栋列表
+ */
+@SuppressLint("NewApi")
+public class BuildSearchFragment extends Fragment implements DataByServer {
+	private TextView builds_sp_bnum = null;
+	private TextView builds_sp_htype = null;
+	private TextView builds_sp_btype = null;
+	private TextView builds_sp_paixu = null;
+	private TextView builds_sp_bsqar = null;
+	private TextView builds_sp_price = null;
+	private TextView text_builds_allnum = null;// 楼栋数量
+	private TextView text_builds_youhui = null;// 优惠信息
+	private MyProgressdialog Progressdialog;
+	private String pname;
+	private ListView listView;
+	private boolean is_divpage;// 是否进行分页操作
+	private MyAdapter myAdapter;
+	private String xfId = "";
+	private String tel = "";
+	private String youhui = "";
+	private String all_sell_count = "";//按条件查出的总共户数
+	private HttpUtil httpUtil;
+	private String url;
+	private int pagenumber = 1;
+	private String pageAllNum = "";
+	private String allNum = "";
+	private String detailNum = "";// 按条件搜索出来的条数
+	private List<NameValuePair> nameValuePairs;
+	private List<BuildsZhuYeEntity> buildlist = new ArrayList<BuildsZhuYeEntity>();
+	private CommonApplication capp;
+	private JSONArray bnuminfolist, btypelist;
+	private String[] bnumitems = null;// 栋地址
+	private String[] bnumitemsvalue = null;//
+	// private String[] htypeitems = null;// 物业类型
+	// private String[] htypeitemsvalue = null;
+	private String[] btypeitems = null;// 建筑形式
+	private String[] btypeitemsvalue = null;
+	private String[] priceitems = null;// 单价
+	private String[] priceitemsvalue = null;
+	private String[] bsqaritems = null;// 建筑面积
+	private String[] bsqaritemsvalue = null;
+	private String[] paixuitems = null;// 排序
+	private String[] paixuvalueitems = null;
+	private WheelView catalogWheel;
+	private JSONObject sscEntity;
+	private String htype = "";
+	private String htype_key = "";
+	private JSONArray htypejson;
+	private View buildLayout;
+	private AlertDialog dialog;
+//	private TelFragmentCallBack TelFragmentCallBack;
+	private String avgprice;
+	private String avgprice_sec;
+	private String btype;
+	private String btype_sec;
+	private String bsqar;
+	private String bsqar_sec;
+	private String totalprice;
+	private String totalprice_sec;
+	private TextView maxtext;
+	private TextView mintext;
+	private TextView tv;
+	private String show_sand_flag;
+    private String pro="";
+	@Override
+	public View onCreateView(LayoutInflater inflater, ViewGroup container,
+			Bundle savedInstanceState) {
+		buildLayout = inflater.inflate(R.layout.builds_dong_search, container,
+				false);
+		setValue();
+		init();
+//		TelFragmentCallBack.setFragmentValue(tel);
+		return buildLayout;
+	}
+
+	public void init() {
+		capp = (CommonApplication) getActivity().getApplication();
+		sscEntity = (JSONObject) capp.getCacheMap().get(
+				ConstantUtil.CAPP_SEARCHCOND);// 获得缓存中的数据
+		findviewbyid();
+		// 初始化房屋类型
+		if (null == htype || "".equals(htype)) {
+			builds_sp_htype.setText("全部");
+		} else {
+			builds_sp_htype.setTag(htype);
+			builds_sp_htype.setText(htype);
+		}
+		// 初始化建筑面积
+		if (null == bsqar || "".equals(bsqar)) {
+			builds_sp_bsqar.setTag("");
+		} else {
+			builds_sp_bsqar.setTag(bsqar_sec);
+			builds_sp_bsqar.setText(bsqar);
+		}
+		// 初始化单价
+		if (null == avgprice || "".equals(avgprice)) {
+			builds_sp_price.setTag("");
+		} else {
+			builds_sp_price.setTag(avgprice_sec);
+			builds_sp_price.setText(avgprice);
+		}
+		// 初始化建筑形式
+		if (null == btype || "".equals(btype)) {
+			builds_sp_btype.setTag("");
+		} else {
+			builds_sp_btype.setTag(btype_sec);
+			builds_sp_btype.setText(btype);
+		}
+		setOnClickListener();
+
+		myAdapter = new MyAdapter();
+		new MyTask().execute();
+		initdata();
+	}
+
+//	public void onAttach(Activity activity) {
+//		super.onAttach(activity);
+//		if (!(activity instanceof TelFragmentCallBack)) {
+//			throw new IllegalStateException(
+//					"buildsMainFragment所在的Activity必须实现TelFragmentCallBack接口");
+//		}
+//		TelFragmentCallBack = (TelFragmentCallBack) activity;
+//	}
+
+	// 当该Fragment从它所属的Activity中被删除时调用该方法
+//	public void onDetach() {
+//		super.onDetach();
+//		TelFragmentCallBack = null;
+//	}
+
+	private void initdata() {
+
+		List<String> list = getDataSource2();// 排序方式
+		paixuitems = new String[list.size()];
+		paixuvalueitems = new String[list.size()];
+		for (int i = 0; i < list.size(); i++) {
+			paixuitems[i] = list.get(i);
+			paixuvalueitems[i] = list.get(i);
+		}
+		list = null;
+	}
+
+	public void setValue() {
+		if (getArguments().containsKey("pname")
+				|| getArguments().containsKey("xfId")) {
+			pname = getArguments().getString("pname");
+			xfId = getArguments().getString("xfId");
+			htype = getArguments().getString("htype_value");
+			htype_key = getArguments().getString("htype_key");
+			avgprice = getArguments().getString("avgprice");
+			avgprice_sec = getArguments().getString("avgprice_sec");
+			btype = getArguments().getString("btype");
+			btype_sec = getArguments().getString("btype_sec");
+			bsqar = getArguments().getString("bsqar");
+			bsqar_sec = getArguments().getString("bsqar_sec");
+			totalprice = getArguments().getString("totalprice");
+			totalprice_sec = getArguments().getString("totalprice_sec");
+			pro = getArguments().getString("pro");
+		}
+	}
+
+	private void setOnClickListener() {
+
+		builds_sp_bnum.setOnClickListener(new Button.OnClickListener() {
+			@Override
+			public void onClick(View arg0) {
+				selectCond(builds_sp_bnum, bnumitemsvalue, bnumitems);
+			}
+		});
+		// builds_sp_htype.setOnClickListener(new Button.OnClickListener() {
+		// @Override
+		// public void onClick(View arg0) {
+		// selectCond(builds_sp_htype, htypeitemsvalue, htypeitems);
+		// }
+		// });
+		builds_sp_btype.setOnClickListener(new Button.OnClickListener() {
+			@Override
+			public void onClick(View arg0) {
+				selectCond(builds_sp_btype, btypeitemsvalue, btypeitems);
+			}
+		});
+		builds_sp_paixu.setOnClickListener(new Button.OnClickListener() {
+			@Override
+			public void onClick(View arg0) {
+				selectCond(builds_sp_paixu, paixuvalueitems, paixuitems);
+			}
+		});
+		builds_sp_price.setOnClickListener(new Button.OnClickListener() {
+			@Override
+			public void onClick(View arg0) {
+				selectCond(builds_sp_price, priceitemsvalue, priceitems);
+			}
+		});
+		builds_sp_bsqar.setOnClickListener(new Button.OnClickListener() {
+			@Override
+			public void onClick(View arg0) {
+				selectCond(builds_sp_bsqar, bsqaritemsvalue, bsqaritems);
+			}
+		});
+
+		listView.setOnItemClickListener(new OnItemClickListener() {
+			@Override
+			public void onItemClick(AdapterView<?> parent, View view,
+					int position, long id) {
+				// capp.getCacheMap().put(ConstantUtil.CAPP_BUILDS_BNUM_COND,
+				// bnuminfolist);//获得楼盘搜索条件
+				Intent intent = new Intent();
+				intent.putExtra("pname", pname);
+				intent.putExtra("xfId", xfId);
+				intent.putExtra("b_num", buildlist.get(position).getB_num());
+				intent.putExtra("dongid", buildlist.get(position).getDong_id());
+				intent.putExtra("onSaleNum", buildlist.get(position)
+						.getSell_count());
+				intent.putExtra("htype", htype);
+				intent.putExtra("htype_key", htype_key);
+				intent.putExtra("pro", pro);
+				// 以下是向户列表发送bundle
+				Bundle bundle = new Bundle();
+				bundle.putString("单价", builds_sp_price.getText().toString());
+				bundle.putString("单价value", builds_sp_price.getTag().toString());
+				bundle.putString("建筑形式", builds_sp_btype.getText().toString());
+				bundle.putString("建筑形式value", builds_sp_btype.getTag()
+						.toString());
+				bundle.putString("建筑面积", builds_sp_bsqar.getText().toString());
+				bundle.putString("建筑面积value", builds_sp_bsqar.getTag()
+						.toString());
+				bundle.putString("总价", totalprice);
+				bundle.putString("总价value", totalprice_sec);
+				intent.putExtras(bundle);
+				intent.setAction(ActionConstantUtil.BUILDS_HOUSELISTT_ACTION);
+				startActivity(intent);
+			}
+
+		});
+		// 分页
+		listView.setOnScrollListener(new OnScrollListener() {
+
+			@Override
+			public void onScrollStateChanged(AbsListView view, int scrollState) {
+				if (is_divpage
+						&& scrollState == OnScrollListener.SCROLL_STATE_IDLE) {
+					if (pagenumber <= Integer.parseInt(pageAllNum)) {
+						if (null == Progressdialog)
+							new MyTask().execute();
+					}
+				}
+				;
+			}
+
+			@Override
+			public void onScroll(AbsListView view, int firstVisibleItem,
+					int visibleItemCount, int totalItemCount) {
+				is_divpage = (firstVisibleItem + visibleItemCount == totalItemCount);
+			}
+		});
+	}
+
+	@Override
+	public void getDataByServer() {
+		connectServer();
+		nameValuePairs.add(new BasicNameValuePair("page", pagenumber + ""));
+		nameValuePairs.add(new BasicNameValuePair("pname", pname));
+		nameValuePairs.add(new BasicNameValuePair("xfId", xfId));
+		nameValuePairs.add(new BasicNameValuePair("btype", builds_sp_btype
+				.getTag().toString()));
+		nameValuePairs
+				.add(new BasicNameValuePair("totalprice", totalprice_sec));
+		nameValuePairs.add(new BasicNameValuePair("htype", htype));
+		nameValuePairs.add(new BasicNameValuePair("bsqar", builds_sp_bsqar
+				.getTag().toString()));
+		nameValuePairs.add(new BasicNameValuePair("price", builds_sp_price
+				.getTag().toString()));
+		nameValuePairs.add(new BasicNameValuePair("paixu", builds_sp_paixu
+				.getText().toString()));
+		nameValuePairs.add(new BasicNameValuePair("b_num", builds_sp_bnum
+				.getText().toString()));
+		JSONObject buildjson = httpUtil.post(url, nameValuePairs);
+		
+		if (null != buildjson) {
+
+			JSONArray buildinfolist;
+			try {
+				buildinfolist = buildjson.getJSONArray("dongListEntity");
+				tel = buildjson.getString("tel");
+				show_sand_flag = buildjson.getString("show_sand_map");
+				youhui = buildjson.getString("youhui");
+				if (null != tel && "" != tel) {
+					tel = tel.split("/")[0].toString();// 得到电话号码
+					
+				}
+				JSONObject numlist = buildjson.getJSONObject("sscEntity");
+				pageAllNum = numlist.getJSONObject("paginationEntity")
+						.getString("allPages");
+				detailNum = numlist.getJSONObject("paginationEntity")
+						.getString("allRecordNumber");
+				numlist = null;
+				if(null==buildjson.getString("all_sell_count")){
+					all_sell_count="0";
+				}else {
+					all_sell_count = buildjson.getString("all_sell_count");
+				}
+				for (int i = 0; i < buildinfolist.length(); i++) {
+					BuildsZhuYeEntity zhuye = new BuildsZhuYeEntity();
+					zhuye.setB_num(((JSONObject) buildinfolist.get(i))
+							.getString("b_num"));
+					zhuye.setLicense_list(((JSONObject) buildinfolist.get(i))
+							.getString("license_list"));
+					zhuye.setB_type(((JSONObject) buildinfolist.get(i))
+							.getString("b_type"));
+					zhuye.setSell_count(((JSONObject) buildinfolist.get(i))
+							.getString("sell_count"));
+					zhuye.setOnsale_sets(((JSONObject) buildinfolist.get(i))
+							.getString("onsale_sets"));
+					zhuye.setFangpusets(((JSONObject) buildinfolist.get(i))
+							.getString("fangpusets"));
+					zhuye.setDong_id(((JSONObject) buildinfolist.get(i))
+							.getString("dong_id"));
+					if(!"".equals(buildlist)&&null!=buildlist)
+					buildlist.add(zhuye);
+					zhuye = null;
+				}
+				bnuminfolist = buildjson.getJSONArray("bnumlist");
+				btypelist = buildjson.getJSONArray("btypeList");
+				allNum = "" + bnuminfolist.length() + "";
+				bnumitems = null;
+				bnumitems = new String[bnuminfolist.length() + 1];
+				bnumitemsvalue = null;
+				bnumitemsvalue = new String[bnuminfolist.length() + 1];
+				bnumitemsvalue[0] = "";
+				bnumitems[0] = "全部";
+				btypeitems = new String[btypelist.length() + 1];
+				btypeitemsvalue = new String[btypelist.length() + 1];
+				btypeitems[0] = "全部";
+				btypeitemsvalue[0] = "";
+
+				for (int i = 0; i < bnuminfolist.length(); i++) {
+					bnumitems[i + 1] = bnuminfolist.get(i).toString();
+					bnumitemsvalue[i + 1] = bnuminfolist.get(i).toString();
+				}
+				for (int i = 0; i < btypelist.length(); i++) {
+					btypeitems[i + 1] = btypelist.get(i).toString();
+					btypeitemsvalue[i + 1] = btypelist.get(i).toString();
+				}
+				if(null!=sscEntity){
+					for (int t = 0; t < sscEntity.getJSONArray("htypeList")
+							.length(); t++) {
+						if (((JSONObject) sscEntity.getJSONArray("htypeList")
+								.get(t)).getString("con_real_val").equals(htype)) {
+							htypejson = ((JSONObject) sscEntity.getJSONArray(
+									"htypeList").get(t))
+									.getJSONArray("scsEntityList");
+							int l = 0, m = 0, lvalue = 1, mvalue = 1;
+							for (int j = 0; j < htypejson.length(); j++) {
+								String type = ((JSONObject) htypejson.get(j))
+										.getString("con_type_sec");
+								if (type.trim().equals("单价")) {
+									l++;
+								}
+								if (type.trim().equals("建筑面积")) {
+									m++;
+								}
+							}
+							priceitems = null;
+							priceitems = new String[l + 2];
+							priceitems[0] = "全部";
+							priceitemsvalue = null;
+							priceitemsvalue = new String[l + 2];// 数据库中对应的value值数组
+							priceitemsvalue[0] = "";
+							bsqaritems = null;
+							bsqaritems = new String[m + 2];
+							bsqaritems[0] = "全部";
+							bsqaritemsvalue = null;
+							bsqaritemsvalue = new String[m + 2];// 数据库中对应的value值数组
+							bsqaritemsvalue[0] = "";
+							l = 1;
+							m = 1;
+							
+							for (int j = 0; j < htypejson.length(); j++) {
+								String type = ((JSONObject) htypejson.get(j))
+										.getString("con_type_sec");
+								if (type.trim().equals("建筑面积")) {
+									bsqaritems[m++] = ((JSONObject) htypejson
+											.get(j)).getString("con_entity_sec");
+									bsqaritemsvalue[mvalue++] = ((JSONObject) htypejson
+											.get(j)).getString("con_real_val_sec");
+								}
+								if (type.trim().equals("单价")) {
+									priceitems[l++] = ((JSONObject) htypejson
+											.get(j)).getString("con_entity_sec");
+									priceitemsvalue[lvalue++] = ((JSONObject) htypejson
+											.get(j)).getString("con_real_val_sec");
+								}
+							}
+							bsqaritems[m] = "自定义";
+							priceitems[l] = "自定义";
+							bsqaritemsvalue[mvalue] = "";
+							priceitemsvalue[lvalue] = "";
+						}
+					}
+				}
+				buildinfolist = null;
+			} catch (JSONException e) {
+				e.printStackTrace();
+			}
+		}
+		buildjson = null;
+		if(null!=httpUtil){
+			httpUtil.clearnameValuePairs(nameValuePairs);
+		}
+	}
+
+	@Override
+	public void connectServer() {
+		this.url = HttpConstantUtil.serverurl + "buildlistsearch";
+		if ("".equals(this.httpUtil) || null == this.httpUtil) {
+			this.httpUtil = new HttpUtil(capp, getActivity());
+		}
+		this.nameValuePairs = new ArrayList<NameValuePair>();
+	}
+
+	private void findviewbyid() {
+		builds_sp_bnum = (TextView) buildLayout
+				.findViewById(R.id.text_builds_sp_bnum);
+		builds_sp_htype = (TextView) buildLayout
+				.findViewById(R.id.text_builds_sp_htype);
+		builds_sp_btype = (TextView) buildLayout
+				.findViewById(R.id.text_builds_sp_btype);
+		builds_sp_bsqar = (TextView) buildLayout
+				.findViewById(R.id.text_builds_sp_bsqar);
+		builds_sp_price = (TextView) buildLayout
+				.findViewById(R.id.text_builds_sp_price);
+		text_builds_allnum = (TextView) buildLayout
+				.findViewById(R.id.text_builds_allnum);
+		text_builds_youhui = (TextView) buildLayout
+				.findViewById(R.id.text_builds_youhui);
+		builds_sp_paixu = (TextView) buildLayout
+				.findViewById(R.id.text_builds_sp_paixu);
+		listView = (ListView) buildLayout
+				.findViewById(R.id.list_builds_dong_listl);
+	}
+
+	public List<String> getDataSource2() {
+		List<String> list = new ArrayList<String>();
+		list.add("可售套数从高到低");
+		list.add("可售套数从低到高");
+		return list;
+	}
+
+	public class MyAdapter extends BaseAdapter {
+		List<BuildsZhuYeEntity> list;
+
+		public void setData(List<BuildsZhuYeEntity> total) {
+			this.list = total;
+		}
+
+		@Override
+		public int getCount() {
+			return list.size();
+		}
+
+		@Override
+		public Object getItem(int position) {
+			return list.get(position);
+		}
+
+		@Override
+		public long getItemId(int position) {
+			return position;
+		}
+
+		@Override
+		public View getView(int position, View convertView, ViewGroup arg2) {
+			ViewHolder holder = null;
+			if (convertView == null) {
+				holder = new ViewHolder();
+				convertView = LayoutInflater.from(getActivity()).inflate(
+						R.layout.builds_donginfol, null);
+				holder.b_addr = (TextView) convertView
+						.findViewById(R.id.text_builds_baddr);
+				holder.license = (TextView) convertView
+						.findViewById(R.id.text_builds_license);
+				holder.b_type = (TextView) convertView
+						.findViewById(R.id.text_builds_btype);
+				holder.keshou = (TextView) convertView
+						.findViewById(R.id.text_builds_salenum);
+				holder.onsale_sets = (TextView) convertView
+						.findViewById(R.id.text_builds_onsalenum);
+				convertView.setTag(holder);
+			} else {
+				holder = (ViewHolder) convertView.getTag();
+			}
+			holder.b_addr.setText("栋号：" + list.get(position).getB_num());
+			holder.license.setText("许可证号："
+					+ list.get(position).getLicense_list());
+			holder.b_type.setText("建筑形式：" + list.get(position).getB_type());
+
+			if ("0".equals(list.get(position).getOnsale_sets())) {
+				holder.onsale_sets.setVisibility(View.VISIBLE);
+				holder.keshou.setText(Html
+						.fromHtml("房谱售出：<font color=\"#6BBD00\">"
+								+ list.get(position).getFangpusets()
+								+ "</font>套"));
+				holder.onsale_sets.setText(Html
+						.fromHtml("<font color=\"#FF4400\">售罄</font>"));
+			} else {
+				holder.onsale_sets.setVisibility(View.GONE);
+				holder.keshou.setText(Html
+						.fromHtml("可售：<font color=\"#FF4400\">"
+								+ list.get(position).getSell_count()
+								+ "</font>套"));
+//				holder.onsale_sets.setText(Html
+//						.fromHtml("<font color=\"#6BBD00\">可售</font>"));
+			}
+			return convertView;
+		}
+
+	}
+
+	class MyTask extends AsyncTask<Void, Void, List<BuildsZhuYeEntity>> {
+		@Override
+		protected void onPreExecute() {
+			super.onPreExecute();
+			Progressdialog = new MyProgressdialog(getActivity(), "加载中",
+					"load......");
+			Progressdialog.dialog.show();
+		}
+
+		@Override
+		protected void onPostExecute(List<BuildsZhuYeEntity> result) {
+			super.onPostExecute(result);
+			// total.addAll(result);
+			if(null!=myAdapter){
+				myAdapter.setData(result);
+				if (pagenumber == 1)
+					listView.setAdapter(myAdapter);
+				myAdapter.notifyDataSetChanged();
+				pagenumber++;
+				text_builds_allnum.setText(Html
+						.fromHtml("可售：<font color=\"#FF4400\">"
+								+ all_sell_count + "</font>套"));
+				text_builds_youhui.setText("\u3000\u3000"+youhui);
+				if(!(result.size()>0))
+				Toast.makeText(getActivity(), "未查出房源", 1000).show();
+//				text_builds_allnum.setText(Html
+//						.fromHtml("全部：<font color=\"#FF4400\">" + allNum
+//								+ "</font>栋      目标：<font color=\"#FF4400\">"
+//								+ all_sell_count + "</font>栋"));
+				Progressdialog.dialog.dismiss();
+				Progressdialog.dialog = null;
+				Progressdialog = null;
+				
+				result = null;
+			}
+		}
+
+		@Override
+		protected List<BuildsZhuYeEntity> doInBackground(Void... params) {
+			getDataByServer();// 访问网络加载数据
+			List<BuildsZhuYeEntity> list = buildlist;
+			return list;
+		}
+
+	}
+
+	public final class ViewHolder {
+		public TextView b_addr;
+		public TextView license;
+		public TextView b_type;
+		public TextView keshou;
+		public TextView h_type;
+		public TextView onsale_sets;
+
+	}
+
+	// 选择条件方法
+	public void selectCond(final TextView textView, final String[] valueitems,
+			final String[] items) {
+
+		dialog = new AlertDialog.Builder(getActivity()).create();
+		// 条件选择布局
+		NHSearchWheelviewLayout searchWheelviewLayout = new NHSearchWheelviewLayout(
+				getActivity(), items);
+		View wheelView = searchWheelviewLayout.getWheelView();
+		catalogWheel = searchWheelviewLayout.getCatalogWheel();
+		// 取消按钮
+		Button cancel = (Button) wheelView.findViewById(R.id.but_cancel_seh);
+		cancel.setOnClickListener(new OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				dialog.dismiss();
+				dialog = null;
+			}
+		});
+		// 确定按钮
+		Button sure = (Button) wheelView.findViewById(R.id.but_sure_seh);
+		sure.setOnClickListener(new OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				tv = textView;
+				int i = catalogWheel.getCurrentItem();
+				catalogWheel = null;
+				String val = valueitems[i];
+				String text = items[i];
+				if ("全部".equals(items[i])) {
+					switch (tv.getId()) {
+					case R.id.text_builds_sp_bnum:
+						text = "栋地址";
+						break;
+					case R.id.text_builds_sp_htype:
+						text = "房屋类型";
+						break;
+					case R.id.text_builds_sp_btype:
+						text = "建筑形式";
+						break;
+					case R.id.text_builds_sp_price:
+						text = "单价";
+						break;
+					case R.id.text_builds_sp_bsqar:
+						text = "面积";
+						break;
+					default:
+						break;
+					}
+				}
+				dialog.dismiss();
+				dialog = null;
+				if ("自定义".equals(text)) {
+					dialog = new AlertDialog.Builder(getActivity()).create();
+					CustomDialog cus = new CustomDialog(getActivity());
+					View rlayout = cus.getWheelView();
+					dialog.setView(rlayout);
+					Window dialogWindow = dialog.getWindow();
+					WindowManager.LayoutParams lp = dialogWindow
+							.getAttributes();
+					dialogWindow.setGravity(Gravity.CENTER | Gravity.BOTTOM);
+					lp.width = 320; // 宽度
+					lp.height = 400; // 高度
+					lp.alpha = 0.8f; // 透明度
+					dialogWindow.setAttributes(lp);
+					dialog.show();
+					Button button_sure = (Button) rlayout
+							.findViewById(R.id.but_sure_cus);
+					Button button_cancel = (Button) rlayout
+							.findViewById(R.id.but_cancel_cus);
+					maxtext = (TextView) rlayout
+							.findViewById(R.id.tex_whe_cusmax);
+					mintext = (TextView) rlayout
+							.findViewById(R.id.tex_whe_cusmin);
+					button_sure.setOnClickListener(button_sureclick);
+					button_cancel.setOnClickListener(button_calcelclick);
+				} else {
+					tv.setText(text);
+					tv.setTag(val);
+					buildlist.clear();
+					pagenumber = 1;
+					tv = null;
+					new MyTask().execute();
+				}
+			}
+		});
+		dialog.setView(wheelView);
+		Window dialogWindow = dialog.getWindow();
+		WindowManager.LayoutParams lp = dialogWindow.getAttributes();
+		dialogWindow.setGravity(Gravity.CENTER | Gravity.BOTTOM);
+		// lp.x = 100; // 新位置X坐标
+		// lp.y = 60; // 新位置Y坐标
+		lp.width = 320; // 宽度
+		lp.height = 400; // 高度
+		lp.alpha = 0.8f; // 透明度
+		dialogWindow.setAttributes(lp);
+		dialog.show();
+		searchWheelviewLayout = null;
+	}
+
+	OnClickListener button_sureclick = new OnClickListener() {
+		@Override
+		public void onClick(View v) {
+			if (maxtext.getText().toString().matches("^[0-9]*$")
+					&& mintext.getText().toString().matches("^[0-9]*$")) {
+				dialog.dismiss();
+				dialog = null;
+				switch (tv.getId()) {
+				case R.id.text_builds_sp_price:
+					if ("".equals(maxtext.getText().toString())
+							&& "".equals(mintext.getText().toString())) {
+
+					} else {
+						if ("".equals(maxtext.getText().toString())
+								&& !"".equals(mintext.getText().toString())) {
+							tv.setText(mintext.getText().toString() + "以上");
+							tv.setTag(mintext.getText().toString() + "~max");
+						} else if (!"".equals(maxtext.getText().toString())
+								&& "".equals(mintext.getText().toString())) {
+							tv.setText(maxtext.getText().toString() + "以下");
+							tv.setTag("0~" + maxtext.getText().toString());
+						} else {
+							tv.setText(mintext.getText().toString() + "-"
+									+ maxtext.getText().toString());
+							tv.setTag(mintext.getText().toString() + "~"
+									+ maxtext.getText().toString());
+						}
+						buildlist.clear();
+						pagenumber = 1;
+						new MyTask().execute();
+					}
+					break;
+				case R.id.text_builds_sp_bsqar:
+					if ("".equals(maxtext.getText().toString())
+							&& "".equals(mintext.getText().toString())) {
+
+					} else {
+						if ("".equals(maxtext.getText().toString())
+								&& !"".equals(mintext.getText().toString())) {
+							tv.setText(mintext.getText().toString() + "㎡以上");
+							tv.setTag("r" + mintext.getText().toString());
+						} else if (!"".equals(maxtext.getText().toString())
+								&& "".equals(mintext.getText().toString())) {
+							tv.setText(maxtext.getText().toString() + "㎡以下");
+							tv.setTag("l" + maxtext.getText().toString());
+						} else {
+							tv.setText(mintext.getText().toString() + "-"
+									+ maxtext.getText().toString() + "㎡");
+							tv.setTag(mintext.getText().toString() + "t"
+									+ maxtext.getText().toString());
+						}
+						buildlist.clear();
+						pagenumber = 1;
+						new MyTask().execute();
+					}
+					break;
+				default:
+					break;
+				}
+
+			} else {
+				Toast.makeText(getActivity(), "只能输入数字,请重新输入", 1000).show();
+			}
+		}
+	};
+	OnClickListener button_calcelclick = new OnClickListener() {
+		@Override
+		public void onClick(View v) {
+			dialog.dismiss();
+			dialog = null;
+		}
+	};
+
+	public void release() {
+		capp = null;
+		httpUtil = null;
+		sscEntity = null;
+		myAdapter = null;
+		buildlist = null;
+		bnumitems = null;// 栋地址
+		bnumitemsvalue = null;//
+		btypeitems = null;// 建筑形式
+		btypeitemsvalue = null;
+		paixuitems = null;// 排序
+		paixuvalueitems = null;
+		pageAllNum = null;
+		detailNum = null;
+		bnuminfolist = null;
+		allNum = null;
+		htypejson = null;
+		nameValuePairs = null;
+	}
+
+	@Override
+	public void onDestroy() {
+		release();
+		super.onDestroy();
+	}
+
+//	public interface TelFragmentCallBack {
+//		public void setFragmentValue(String tel);
+//	}
+}
