@@ -3,7 +3,7 @@ SegmentDemo
 
 仿iossegment controller的一个demo
 =================================
-使用时候记得在根布局写上 xmlns:attr="http://schemas.android.com/apk/res/+segmentbutton对应的包名"
+使用SegmentButton时候记得在根布局写上 xmlns:attr="http://schemas.android.com/apk/res/+segmentbutton对应的包名"
 例如：
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
@@ -29,3 +29,6 @@ SegmentDemo
     </FrameLayout>
 
 </LinearLayout>
+
+=================================
+使用注解进行findviewbyid 要注意在setContentView 之后Injector.get(this).inject() 否则会报错
