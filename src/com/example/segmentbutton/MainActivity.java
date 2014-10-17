@@ -10,9 +10,11 @@ import android.widget.Button;
 import com.example.fragment.Fragment01;
 import com.example.fragment.Fragment02;
 import com.example.fragment.Fragment03;
+import com.example.injector.InjectView;
+import com.example.injector.Injector;
 
 public class MainActivity extends FragmentActivity {
-
+	@InjectView(R.id.segment_button)
 	private SegmentButton segment_button;
 	private Fragment01 fragment01;
 	private Fragment02 fragment02;
@@ -26,6 +28,7 @@ public class MainActivity extends FragmentActivity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
+		Injector.get(this).inject();//init views
 		fragmentManager = getSupportFragmentManager();
 		// 第一次启动时选中第1个tab
 		setTabSelection(1);
