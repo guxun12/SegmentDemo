@@ -32,3 +32,9 @@ SegmentDemo
 
 =================================
 使用注解进行findviewbyid 要注意在setContentView 之后Injector.get(this).inject() 否则会报错
+
+=================================
+
+![image](https://github.com/guxun12/SegmentDemo/raw/master/segment_demo.gif)
+
+
