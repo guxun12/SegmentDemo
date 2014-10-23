@@ -35,6 +35,6 @@ SegmentDemo
 
 =================================
 
-![image](https://github.com/guxun12/SegmentDemo/raw/master/segment_demo.gif)
+![image](https://github.com/guxun12/file_temp/blob/master/segment_demo/demo.gif)
 
 
